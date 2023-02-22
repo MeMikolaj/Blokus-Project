@@ -17,7 +17,7 @@ Rules of the game can be found:
 - https://www.ultraboardgames.com/blokus/game-rules.php
 
 
-I am still developing the project. Currently I am implementing mathematical strategy to "solve" the game in last few moves (computations can be done in reasonable time). On top of that, I am implementing a dynamic strategies and testing them against other strategies and human players.
+I am still developing the project. Code isn't appropriately commented. Currently I am implementing mathematical strategy to "solve" the game in last few moves (computations can be done in reasonable time). On top of that, I am implementing a dynamic strategies and testing them against other strategies and human players.
 Later on, I will do some more research and write the disertation document with all the pros and cons of my choices. 
 
 All the algorithms can be easily optimised if one had more time.
