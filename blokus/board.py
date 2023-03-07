@@ -104,6 +104,57 @@ class Board:
                     corners_set.add(corner)
         player.corners = corners_set
 
+    def add_corners_and_influence(self, player, corners):
+        corners_set = player.corners
+        influence_set = player.influence
+        influence_candidate = set()
+        for corner in corners:
+            if self.in_bounds(corner) and self.not_occupied(corner) and self.adj_corner(corner, player):
+                    corners_set.add(corner)
+                    x = corner[0]
+                    y = corner[1]
+                    influence_candidate.add((x-2, y))
+                    influence_candidate.add((x-1, y))
+                    influence_candidate.add((x-2, y+1))
+                    influence_candidate.add((x-1, y+1))
+                    influence_candidate.add((x, y+1))
+                    influence_candidate.add((x+1, y+1))
+                    influence_candidate.add((x+2, y+1))
+                    influence_candidate.add((x-1, y+2))
+                    influence_candidate.add((x, y+2))
+                    influence_candidate.add((x+1, y+2))
+                    influence_candidate.add((x-2, y-1))
+                    influence_candidate.add((x-1, y-1))
+                    influence_candidate.add((x, y-1))
+                    influence_candidate.add((x+1, y-1))
+                    influence_candidate.add((x+2, y-1))
+                    influence_candidate.add((x+1, y))
+                    influence_candidate.add((x+2, y))
+                    influence_candidate.add((x-1, y-2))
+                    influence_candidate.add((x, y-2))
+                    influence_candidate.add((x+1, y-2))
+                    for candidate in influence_candidate:
+                        if self.in_bounds(candidate) and self.not_occupied(candidate) and self.adj_corner(candidate, player):
+                            influence_set.add(candidate)
+                    influence_candidate.clear()
+        player.corners = corners_set
+        player.influence = influence_set
+
+    # Filter influence set after placing a piece
+    def filter_influence(self, player):
+        influence_set = player.influence.copy()
+        for influence in player.influence:
+            if not self.not_occupied(influence):
+                influence_set.remove(influence)
+            elif not self.adj_corner(influence, player):
+                influence_set.remove(influence)
+        player.influence = influence_set.copy()
+
+    # Filter influence set for all players
+    def all_filter_influence(self, blokus):
+        for player in blokus.players:
+            self.filter_influence(player)
+
     # Some corners are not corners anymore (we used 1 and might have covered some)
     def filter_corners(self, player):
         corners_set = player.corners.copy()
@@ -271,12 +322,12 @@ class Board:
 
 
     def max_size(self, blokus, max_size, piece):
-        if blokus.round > 14:
+        if blokus.round >= 10:
             return True
-        elif blokus.round > 12:
+        elif blokus.round >= 8:
             if(piece.size < max_size-2):
                 return False
-        elif blokus.round > 7:
+        elif blokus.round >= 6:
             if(piece.size < max_size-1):
                 return False
         else:
@@ -319,6 +370,8 @@ class Board:
                 player1 = copy.deepcopy(player)
         return(saveIdPieces, saveIdPoints)
 
+
+    ### !!!!! CHNGE IT - SHOULD FILTER ALL THE CORNERS!!!!!
     def max_min_moves_largest_piece(self, player, blokus):
         copyBoardObj = copy.deepcopy(self)
         saveIdPieces = Shape()
@@ -389,26 +442,162 @@ class Board:
                     saveIdPoints = tempIdPt
                 player1 = copy.deepcopy(player)
         return(saveIdPieces, saveIdPoints)
-        
-    # In the future, use recursion
-    #def solve_last_moves(self, blokus):
-    #    copyBoardObj = copy.deepcopy(self)
-    #    blokusCopy = copy.deepcopy(blokus)
-    #    piece_ID_to_return = 0
-    #    points_ID_to_return = 0
-    #    max_score = 0;
-    #    if blokusCopy.num_players == 2:
-    #        player1 = copy.deepcopy(blokusCopy.players[blokusCopy.current_player])
-    #        player1_0 = copy.deepcopy(blokusCopy.players[blokusCopy.current_player])
-    #        #blokusCopy.next_player()
-    #        #if not blokusCopy.finished and blokusCopy.current_player == (blokusCopy.num_players - 1):
-    #        #    blokusCopy.round = blokusCopy.round - 1
-    #        #player2 = copy.deepcopy(blokusCopy.players[blokusCopy.current_player])
-    #        #player2_0 = copy.deepcopy(blokusCopy.players[blokusCopy.current_player])
-    #        #blokusCopy.next_player()
-    #        score = 0
-    #        max_points1 = 0
-    #        max_points2 = 0
-    #        for piece in copyBoardObj.valid_pieces(player1):
-    #            for point in copyBoardObj.valid_points(piece, player1):
-    #                score += piece.size
+
+
+
+    ############## Recursion for 2 players ##############
+
+    def recu_1(self, blokus, temp_score, depth):
+        self.count_possible_moves_all(blokus)
+        player = blokus.players[blokus.current_player]
+        setOfPieces = self.valid_pieces(player)
+        blokus.find_winner()
+        if blokus.finished or depth <= 0:
+            return temp_score
+        elif len(setOfPieces) == 0:
+            blokus.next_player()
+            temp_score -= self.recu_2(blokus, temp_score, depth)
+            return temp_score
+        set_of_scores_pieces = set()
+        set_of_scores_pts = set()
+        for piece in setOfPieces:
+            setOfPoints = self.valid_points(piece, player)
+            piece_index = player.pieces.index(piece)
+            for piece_pts in setOfPoints:
+                temp_solution = temp_score
+                board_copy = copy.deepcopy(self)
+                blokus_copy = copy.deepcopy(blokus)
+                player_copy = blokus_copy.players[blokus_copy.current_player]
+                fake_corner_array = []
+                for pt in piece_pts:
+                    board_copy.board[pt[0]][pt[1]] = player_copy.id
+                    fake_corner_array.append((pt[0]+1, pt[1]+1))
+                    fake_corner_array.append((pt[0]-1, pt[1]+1))
+                    fake_corner_array.append((pt[0]-1, pt[1]-1))
+                    fake_corner_array.append((pt[0]+1, pt[1]-1))
+                board_copy.add_corners(player_copy, fake_corner_array)
+                board_copy.filter_corners(player_copy)
+                player_copy.remove_piece(piece_index)
+                blokus_copy.next_player()
+                temp_solution += piece.sizeboard_copy.recu_2(blokus_copy, temp_score + piece.size, depth)
+                set_of_scores_pts.add(temp_solution)
+            set_of_scores_pieces.add(max(set_of_scores_pts))
+            set_of_scores_pts.clear
+        return max(set_of_scores_pieces)
+
+    def recu_2(self, blokus, temp_score, depth):
+        self.count_possible_moves_all(blokus)
+        player = blokus.players[blokus.current_player]
+        setOfPieces = self.valid_pieces(player)
+        blokus.find_winner()
+        if blokus.finished:
+            return temp_score
+        elif len(setOfPieces) == 0:
+            blokus.next_player()
+            temp_score += self.recu_1(blokus, temp_score, depth-1)
+            return temp_score
+        set_of_scores_pieces = set()
+        set_of_scores_pts = set()
+        for piece in setOfPieces:
+            setOfPoints = self.valid_points(piece, player)
+            piece_index = player.pieces.index(piece)
+            for piece_pts in setOfPoints:
+                temp_solution = temp_score
+                board_copy = copy.deepcopy(self)
+                blokus_copy = copy.deepcopy(blokus)
+                player_copy = blokus_copy.players[blokus_copy.current_player]
+                fake_corner_array = []
+                for pt in piece_pts:
+                    board_copy.board[pt[0]][pt[1]] = player_copy.id
+                    fake_corner_array.append((pt[0]+1, pt[1]+1))
+                    fake_corner_array.append((pt[0]-1, pt[1]+1))
+                    fake_corner_array.append((pt[0]-1, pt[1]-1))
+                    fake_corner_array.append((pt[0]+1, pt[1]-1))
+                board_copy.add_corners(player_copy, fake_corner_array)
+                board_copy.filter_corners(player_copy)
+                player_copy.remove_piece(piece_index)
+                blokus_copy.next_player()
+                temp_solution += board_copy.recu_1(blokus_copy, temp_score - piece.size, depth-1)
+                set_of_scores_pts.add(temp_solution)
+            set_of_scores_pieces.add(min(set_of_scores_pts))
+            set_of_scores_pts.clear
+        return min(set_of_scores_pieces)
+
+    # Recu depth excided! Mby try to do depth 3 or 4
+    def recu_start(self, blokus, depth):
+        self.count_possible_moves_all(blokus)
+        player = blokus.players[blokus.current_player]
+        setOfPieces = self.valid_pieces(player)
+        temp_score = 0
+        max_score   = -9999
+        max_element = Shape()
+        max_points  = frozenset()
+        for piece in setOfPieces:
+            setOfPoints = self.valid_points(piece, player)
+            piece_index = player.pieces.index(piece)
+            for piece_pts in setOfPoints:
+                board_copy = copy.deepcopy(self)
+                blokus_copy = copy.deepcopy(blokus)
+                player_copy = blokus_copy.players[blokus_copy.current_player]
+                fake_corner_array = []
+                for pt in piece_pts:
+                    board_copy.board[pt[0]][pt[1]] = player_copy.id
+                    fake_corner_array.append((pt[0]+1, pt[1]+1))
+                    fake_corner_array.append((pt[0]-1, pt[1]+1))
+                    fake_corner_array.append((pt[0]-1, pt[1]-1))
+                    fake_corner_array.append((pt[0]+1, pt[1]-1))
+                board_copy.add_corners(player_copy, fake_corner_array)
+                board_copy.filter_corners(player_copy)
+                player_copy.remove_piece(piece_index)
+                blokus_copy.next_player()
+                temp_score = board_copy.recu_2(blokus_copy, piece.size, depth)
+                if(temp_score > max_score):
+                    max_score   = temp_score
+                    max_element = piece
+                    max_points  = piece_pts
+                    print("-- New top value found --")
+        return (max_element, max_points)
+
+
+
+    ### !!!! I NEED TO PEEEE, MAYBW IT DOESN'T REALLY FILTERS ALL THE INFLUCE AREAS, DOUBLE CHECK IT PLS AND TEST IT
+    ############## MAXIMISE INFLUENCE AREA for yourself and MINIMISE FOR THE OPPONENT ##############
+
+    # max min influence area, check it for all the pieces all the points. Decision for present, not future
+    def max_min_influence_area(self, player, blokus):
+        copyBoardObj = copy.deepcopy(self)
+        saveIdPieces = Shape()
+        saveIdPoints = set()
+        save_score = -9999
+        setOfPieces = self.valid_pieces(player)
+        max_attr = max(setOfPieces, key=attrgetter('size'))
+        largest_pieces = list(filter(lambda x: self.max_size(blokus, max_attr.size, x), setOfPieces))
+        tempIdPc = Shape()
+        player1 = copy.deepcopy(player)
+        for x in largest_pieces:
+            tempIdPc = x
+            setOfPoints = self.valid_points(x, player)
+            tempIdPt = set()
+            for y in setOfPoints:
+                tempIdPt = y
+                blokus_copy = copy.deepcopy(blokus)
+                copyBoardObj = copy.deepcopy(self)
+                fake_corner_array = []
+                for pt in y:
+                    copyBoardObj.board[pt[0]][pt[1]] = player1.id
+                    fake_corner_array.append((pt[0]+1, pt[1]+1))
+                    fake_corner_array.append((pt[0]-1, pt[1]+1))
+                    fake_corner_array.append((pt[0]-1, pt[1]-1))
+                    fake_corner_array.append((pt[0]+1, pt[1]-1))
+                copyBoardObj.add_corners_and_influence(player1, fake_corner_array)
+                copyBoardObj.all_filter_influence(blokus)
+                resultMoves = len(player1.influence)*blokus_copy.num_players/2
+                for z in blokus_copy.players:
+                    if z != player:
+                        resultMoves = resultMoves - len(z.influence)
+                if resultMoves > save_score:
+                    save_score = resultMoves
+                    saveIdPieces = tempIdPc
+                    saveIdPoints = tempIdPt
+                player1 = copy.deepcopy(player)
+        return(saveIdPieces, saveIdPoints)

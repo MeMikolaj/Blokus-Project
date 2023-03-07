@@ -14,6 +14,7 @@ class Player:
         self.position = -1 # piece chosen
         self.possible_moves = 1 # num of possible_moves
         self.strategy = strategy
+        self.influence = set()
 
 
     # Add the player's initial pieces for a game
