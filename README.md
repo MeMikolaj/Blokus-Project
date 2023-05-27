@@ -19,3 +19,6 @@ Rules of the game can be found:
 
 Many of the algorithms could be optimised and further developed.
 For the details about the project, check the dissertation file.
+
+For the overview of the project, watch the 10min video available at:
+- https://youtu.be/wbe1qqhr6b8
